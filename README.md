@@ -56,6 +56,9 @@ input-validate lambda function (which is the first step in the ingest process).
 * **MediaConvert_Template_2160p:**	The name of the UHD template in MediaConvert
 * **MediaConvert_Template_1080p:**	The name of the HD template in MediaConvert
 * **MediaConvert_Template_720p:**	The name of the SD template in MediaConvert
+* **MediaConvert_Template_2160p_Portrait:**  The name of the UHD portrait template in MediaConvert
+* **MediaConvert_Template_1080p_Portrait:**  The name of the HD portrait template in MediaConvert
+* **MediaConvert_Template_720p_Portrait:**   The name of the SD portrait template in MediaConvert*
 * **Source:**	The name of the source S3 bucket
 * **WorkflowName:**	Used to tag all of the MediaConvert encoding jobs
 * **acceleratedTranscoding** Enabled Accelerated Transcoding in MediaConvert. options include
@@ -106,6 +109,9 @@ in the metadata file.
     "jobTemplate_2160p": "string",
     "jobTemplate_1080p": "string",
     "jobTemplate_720p": "string",
+    "jobTemplate_2160p_portrait": "string",
+    "jobTemplate_1080p_portrait": "string",
+    "jobTemplate_720p_portrait": "string",
     "jobTemplate": "custom-job-template",
     "inputRotate": "DEGREE_0|DEGREES_90|DEGREES_180|DEGREES_270|AUTO",
     "captions": {
@@ -120,11 +126,14 @@ The solution also supports adding additional metadata, such as title, genre, or 
 information, you want to store in Amazon DynamoDB.
 
 ## Encoding Templates
-At launch the Solution creates 3 MediaConvert job templates which are used as the default encoding
+At launch the Solution creates 6 MediaConvert job templates which are used as the default encoding
 templates for the workflow:
 - **MediaConvert_Template_2160p**
 - **MediaConvert_Template_1080p**
 - **MediaConvert_Template_720p**
+- **MediaConvert_Template_2160p_Portrait**
+- **MediaConvert_Template_1080p_Portrait**
+- **MediaConvert_Template_720p_Portrait**
 
 By default, the profiler step in the process step function will check the source video height and
 set the parameter "jobTemplate" to one of the

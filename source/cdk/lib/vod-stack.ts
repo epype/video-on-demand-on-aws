@@ -968,9 +968,24 @@ export class VideoOnDemand extends cdk.Stack {
           `${cdk.Aws.STACK_NAME}_Ott_720p_Avc_Aac_16x9_mvod_no_preset`,
           `${cdk.Aws.STACK_NAME}_Ott_720p_Avc_Aac_16x9_qvbr_no_preset`
         )}`,
+        MediaConvert_Template_2160p_Portrait: `${cdk.Fn.conditionIf(
+          conditionEnableMediaPackage.logicalId,
+          `${cdk.Aws.STACK_NAME}_Ott_2160p_Avc_Aac_9x16_mvod_no_preset`,
+          `${cdk.Aws.STACK_NAME}_Ott_2160p_Avc_Aac_9x16_qvbr_no_preset`
+        )}`,
+        MediaConvert_Template_1080p_Portrait: `${cdk.Fn.conditionIf(
+          conditionEnableMediaPackage.logicalId,
+          `${cdk.Aws.STACK_NAME}_Ott_1080p_Avc_Aac_9x16_mvod_no_preset`,
+          `${cdk.Aws.STACK_NAME}_Ott_1080p_Avc_Aac_9x16_qvbr_no_preset`
+        )}`,
+        MediaConvert_Template_720p_Portrait: `${cdk.Fn.conditionIf(
+          conditionEnableMediaPackage.logicalId,
+          `${cdk.Aws.STACK_NAME}_Ott_720p_Avc_Aac_9x16_mvod_no_preset`,
+          `${cdk.Aws.STACK_NAME}_Ott_720p_Avc_Aac_9x16_qvbr_no_preset`
+        )}`,
         CloudFront: distribution.cloudFrontWebDistribution.domainName,
         EnableMediaPackage: `${cdk.Fn.conditionIf(conditionEnableMediaPackage.logicalId, 'true', 'false')}`,
-        InputRotate: 'DEGREE_0',
+        InputRotate: 'AUTO',
         EnableSns: `${cdk.Fn.conditionIf(conditionEnableSns.logicalId, 'true', 'false')}`,
         EnableSqs: `${cdk.Fn.conditionIf(conditionEnableSqs.logicalId, 'true', 'false')}`,
         AcceleratedTranscoding: acceleratedTranscoding.valueAsString

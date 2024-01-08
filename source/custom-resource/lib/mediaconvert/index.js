@@ -140,6 +140,18 @@ const qvbrTemplatesNoPreset = [
     {
         name: '_Ott_720p_Avc_Aac_16x9_qvbr_no_preset',
         file: './lib/mediaconvert/templates/720p_avc_aac_16x9_qvbr_no_preset.json'
+    },
+    {
+        name: '_Ott_2160p_Avc_Aac_9x16_qvbr_no_preset',
+        file: './lib/mediaconvert/templates/2160p_avc_aac_9x16_qvbr_no_preset.json'
+    },
+    {
+        name: '_Ott_1080p_Avc_Aac_9x16_qvbr_no_preset',
+        file: './lib/mediaconvert/templates/1080p_avc_aac_9x16_qvbr_no_preset.json'
+    },
+    {
+        name: '_Ott_720p_Avc_Aac_9x16_qvbr_no_preset',
+        file: './lib/mediaconvert/templates/720p_avc_aac_9x16_qvbr_no_preset.json'
     }
 ];
 
@@ -155,6 +167,18 @@ const mediaPackageTemplatesNoPreset = [
     {
         name: '_Ott_720p_Avc_Aac_16x9_mvod_no_preset',
         file: './lib/mediaconvert/templates/720p_avc_aac_16x9_mvod_no_preset.json'
+    },
+    {
+        name: '_Ott_2160p_Avc_Aac_9x16_mvod_no_preset',
+        file: './lib/mediaconvert/templates/2160p_avc_aac_9x16_mvod_no_preset.json'
+    },
+    {
+        name: '_Ott_1080p_Avc_Aac_9x16_mvod_no_preset',
+        file: './lib/mediaconvert/templates/1080p_avc_aac_9x16_mvod_no_preset.json'
+    },
+    {
+        name: '_Ott_720p_Avc_Aac_9x16_mvod_no_preset',
+        file: './lib/mediaconvert/templates/720p_avc_aac_9x16_mvod_no_preset.json'
     }
 ];
 

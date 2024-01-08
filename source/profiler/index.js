@@ -41,9 +41,29 @@ exports.handler = async (event) => {
         let mediaInfo = JSON.parse(event.srcMediainfo);
         event.srcHeight = mediaInfo.video[0].height;
         event.srcWidth = mediaInfo.video[0].width;
+        event.srcRotation = Number.parseInt(mediaInfo.video[0].rotation, 10);
+
+        // if this video is submitted in a portrait ratio (rather than landscape with rotation data), mark it
+        let isPortrait = (event.srcHeight > event.srcWidth);
 
         // Determine encoding by matching the srcHeight to the nearest profile.
-        const profiles = [2160, 1080, 720];
+        let profiles;
+        if (isPortrait) {
+            profiles = [3840, 1920, 1280];
+        } else {
+            profiles = [2160, 1080, 720];
+        }
+        // Match Height x Width with the encoding profile.
+        const ratios = {
+            '2160': 3840,
+            '1080': 1920,
+            '720': 1280,
+            '3840': 2160,
+            '1920': 1080,
+            '1280': 720
+        };
+        const portraitRotations = [90, 270];
+        const inputRotations = ['AUTO', 'DEGREE_90', 'DEGREE_270'];
         let lastProfile;
         let encodeProfile;
 
@@ -57,18 +77,22 @@ exports.handler = async (event) => {
             lastProfile = profile;
         });
 
+        // if this is a portrait video, get the opposite dimension for the encoding profile
+        if (isPortrait) {
+            encodeProfile = ratios[encodeProfile];
+        }
+
         event.encodingProfile = encodeProfile;
 
         if (event.frameCapture) {
-            // Match Height x Width with the encoding profile.
-            const ratios = {
-                '2160': 3840,
-                '1080': 1920,
-                '720': 1280
-            };
-
-            event.frameCaptureHeight = encodeProfile;
-            event.frameCaptureWidth = ratios[encodeProfile];
+            if (isPortrait ||
+                (portraitRotations.includes(event.srcRotation) && inputRotations.includes(event.inputRotate))) {
+                event.frameCaptureHeight = ratios[encodeProfile];
+                event.frameCaptureWidth = encodeProfile;
+            } else {
+                event.frameCaptureHeight = encodeProfile;
+                event.frameCaptureWidth = ratios[encodeProfile];
+            }
         }
 
         // Update:: added support to pass in a custom encoding Template instead of using the
@@ -78,10 +102,18 @@ exports.handler = async (event) => {
             const jobTemplates = {
                 '2160': event.jobTemplate_2160p,
                 '1080': event.jobTemplate_1080p,
-                '720': event.jobTemplate_720p
+                '720': event.jobTemplate_720p,
+                '2160_portrait': event.jobTemplate_2160p_portrait,
+                '1080_portrait': event.jobTemplate_1080p_portrait,
+                '720_portrait': event.jobTemplate_720p_portrait
             };
 
-            event.jobTemplate = jobTemplates[encodeProfile];
+            if (isPortrait ||
+                (portraitRotations.includes(event.srcRotation) && inputRotations.includes(event.inputRotate))) {
+                event.jobTemplate = jobTemplates[encodeProfile + '_portrait'];
+            } else {
+                event.jobTemplate = jobTemplates[encodeProfile];
+            }
             console.log(`Chosen template:: ${event.jobTemplate}`);
 
             event.isCustomTemplate = false;
