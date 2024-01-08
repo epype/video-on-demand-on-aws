@@ -17,6 +17,7 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as eventsources from 'aws-cdk-lib/aws-lambda-event-sources';
 import * as kms from 'aws-cdk-lib/aws-kms';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
@@ -47,6 +48,16 @@ export class VideoOnDemand extends cdk.Stack {
       type: 'String',
       description: 'Email address for SNS notifications (subscribed users will receive ingest, publishing, and error notifications)',
       allowedPattern: '^[_A-Za-z0-9-\\+]+(\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})$'
+    });
+    const epypeApiUrl = new cdk.CfnParameter(this, 'EpypeApiUrl', {
+      type: 'String',
+      description: 'URL for EPYPE API notification for published videos',
+      allowedPattern: '^(?:([A-Za-z]+):)?(\\/{0,3})([0-9.\\-A-Za-z]+)(?::(\\d+))?(?:\\/([^?#]*))?(?:\\?([^#]*))?(?:#(.*))?$'
+    });
+    const epypeApiAuthorization = new cdk.CfnParameter(this, 'EpypeApiAuthorization', {
+      type: 'String',
+      description: 'URL for EPYPE API notification for published videos',
+      allowedPattern: '^[A-Za-z0-9]{64}$'
     });
     const workflowTrigger = new cdk.CfnParameter(this, 'WorkflowTrigger', {
       type: 'String',
@@ -101,6 +112,8 @@ export class VideoOnDemand extends cdk.Stack {
             Label: { default: 'Workflow' },
             Parameters: [
               adminEmail.logicalId,
+              epypeApiUrl.logicalId,
+              epypeApiAuthorization.logicalId,
               workflowTrigger.logicalId,
               glacier.logicalId,
               enableSns.logicalId,
@@ -122,6 +135,12 @@ export class VideoOnDemand extends cdk.Stack {
         ParameterLabels: {
           AdminEmail: {
             default: 'Notification email address'
+          },
+          EpypeApiUrl: {
+            default: 'EPYPE API URL'
+          },
+          EpypeApiAuthorization: {
+            default: 'EPYPE API Authorization header value'
           },
           Glacier: {
             default: 'Archive source content'
@@ -1734,6 +1753,107 @@ export class VideoOnDemand extends cdk.Stack {
     //cfn_nag
     const cfnSnsNotificationLambda = snsNotificationLambda.node.findChild('Resource') as lambda.CfnFunction;
     cfnSnsNotificationLambda.cfnOptions.metadata = {
+      cfn_nag: {
+        rules_to_suppress: [
+          {
+            id: 'W89',
+            reason: 'Lambda functions do not need a VPC'
+          }, {
+            id: 'W92',
+            reason: 'Lambda do not need ReservedConcurrentExecutions in this case'
+          }, {
+            id: 'W58',
+            reason: 'Invalid warning: function has access to cloudwatch'
+          }
+        ]
+      }
+    };
+
+    /**
+     * EpypeApiNotification role and lambda
+     */
+    const epypeApiNotificationRole = new iam.Role(this, 'epypeApiNotificationRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com')
+    });
+    const epypeApiNotificationPolicy = new iam.Policy(this, 'EpypeApiNotificationPolicy', {
+      policyName: `${cdk.Aws.STACK_NAME}-epype-api-notification-role`,
+      statements: [
+        new iam.PolicyStatement({
+          resources: [sqsQueue.queueArn],
+          actions: [
+            'sqs:GetQueueAttributes',
+            'sqs:ReceiveMessage',
+            'sqs:DeleteMessage',
+            'sqs:DeleteMessageBatch',
+          ]
+        }),
+        new iam.PolicyStatement({
+          resources: [errorHandlerLambda.functionArn],
+          actions: ['lambda:InvokeFunction']
+        }),
+        new iam.PolicyStatement({
+          resources: [`arn:${cdk.Aws.PARTITION}:logs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:log-group:/aws/lambda/*`],
+          actions: [
+            'logs:CreateLogGroup',
+            'logs:CreateLogStream',
+            'logs:PutLogEvents'
+          ]
+        })
+      ]
+    });
+    epypeApiNotificationPolicy.attachToRole(epypeApiNotificationRole);
+
+    //cfn_nag
+    const cfnEpypeApiNotificationRole = epypeApiNotificationRole.node.findChild('Resource') as iam.CfnRole;
+    cfnEpypeApiNotificationRole.cfnOptions.metadata = {
+      cfn_nag: {
+        rules_to_suppress: [
+          {
+            id: 'W11',
+            reason: '* is used so that the Lambda function can create log groups'
+          }
+        ]
+      }
+    };
+    //cdk_nag
+    NagSuppressions.addResourceSuppressions(
+      epypeApiNotificationPolicy,
+      [
+        {
+          id: 'AwsSolutions-IAM5',
+          reason: '* is used so that the Lambda function can create log groups'
+        }
+      ]
+    );
+
+    const epypeApiNotificationEventSource = new eventsources.SqsEventSource(sqsQueue, {
+      batchSize: 10
+    });
+
+    const epypeApiNotificationLambda = new lambda.Function(this, 'EpypeApiNotificationLambda', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'index.handler',
+      functionName: `${cdk.Aws.STACK_NAME}-epype-api-notification`,
+      description: 'Notify the EPYPE API when a video is published',
+      environment: {
+        SOLUTION_IDENTIFIER: `AwsSolution/${solutionId}/%%VERSION%%`,
+        AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1',
+        ErrorHandler: errorHandlerLambda.functionArn,
+        SqsQueue: sqsQueue.queueArn,
+        EpypeApiUrl: epypeApiUrl.valueAsString,
+        EpypeApiAuthorization: epypeApiAuthorization.valueAsString
+      },
+      role: epypeApiNotificationRole,
+      code: lambda.Code.fromAsset('../epype-api-notification'),
+      timeout: cdk.Duration.seconds(120)
+    });
+    epypeApiNotificationLambda.node.addDependency(epypeApiNotificationRole);
+    epypeApiNotificationLambda.node.addDependency(epypeApiNotificationPolicy);
+    epypeApiNotificationLambda.addEventSource(epypeApiNotificationEventSource);
+
+    //cfn_nag
+    const cfnEpypeApiNotificationLambda = epypeApiNotificationLambda.node.findChild('Resource') as lambda.CfnFunction;
+    cfnEpypeApiNotificationLambda.cfnOptions.metadata = {
       cfn_nag: {
         rules_to_suppress: [
           {

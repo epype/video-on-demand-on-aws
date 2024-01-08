@@ -58,6 +58,7 @@ declare -a lambda_packages=(
   "sns-notification"
   "sqs-publish"
   "step-functions"
+  "epype-api-notification"
 )
 
 for lambda_package in "${lambda_packages[@]}"
